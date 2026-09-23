@@ -23,22 +23,22 @@ python pipeline.py
 
 ## 3. Engineering & Design Decisions
 
- ###  1. Data Cleaning & Parsing
+ ### Data Cleaning & Parsing
 
  * Price Parsing: Stripped non-numeric currency characters (£) and cast values to float (price_gbp).
  * Star Ratings: Mapped text representations ("One" through "Five") to integer values (1 to 5) using a dictionary mapping.
  * Availability: Processed string flags ("In stock") into boolean integer values (1 for in stock, 0 for out of stock).
 
- ### 2. Missing Value & Exception Handling Strategy
+ ### Missing Value & Exception Handling Strategy
 
  * Numeric Fields: Applied median imputation fallback if numeric parsing fails or null values occur.
  * Corrupted/Unparseable Rows: Dropped unparseable rows during iteration to preserve database integrity and prevent execution crashes.
 
- ### 3. Baseline Currency Conversion Rate
+ ### Baseline Currency Conversion Rate
 
  * Fixed Rate: Computed price_inr = price_gbp * 105.50 using the project's required fixed baseline constant (1 GBP = 105.50 INR).
  
- ### 4. Normalized SQLite Schema (2-Table PK/FK)
+ ### Normalized SQLite Schema (2-Table PK/FK)
 
  The database (zepto_catalog.db) uses a normalized relational model with Foreign Key enforcement (PRAGMA foreign_keys = ON;):
 
