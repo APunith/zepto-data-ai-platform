@@ -1,0 +1,20 @@
+[
+  {
+    "doc_id": "FAQ001",
+    "category": "Shipping & Delivery",
+    "title": "Delivery Timelines",
+    "content": "Standard delivery takes 3 to 5 business days across major cities. Express 10-minute delivery is available for select catalog items in supported pincodes."
+  },
+  {
+    "doc_id": "FAQ002",
+    "category": "Returns & Refunds",
+    "title": "Return Policy",
+    "content": "Unopened products can be returned within 7 days of delivery. Refunds are processed to the original payment method within 3 business days after item inspection."
+  },
+  {
+    "doc_id": "FAQ003",
+    "category": "Payments",
+    "title": "Accepted Payment Methods",
+    "content": "We accept credit/debit cards (Visa, MasterCard), UPI (Google Pay, PhonePe, Paytm), Net Banking, and Cash on Delivery for orders below 1000 INR."
+  }
+]
