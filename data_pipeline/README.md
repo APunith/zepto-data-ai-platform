@@ -21,73 +21,34 @@ python pipeline.py
 
 
 
-### 3. Engineering & Design Decisions
+##  Engineering & Design Decisions
 
-#### Data Parsing & Cleaning Logic
-price_gbp (float): Stripped the £ currency symbol from raw price strings and converted values to floating-point numbers.
+ ###  1. Data Cleaning & Parsing
 
-rating (int 1–5): Mapped textual star ratings ("One", "Two", "Three", "Four", "Five") to integer values (1–5) using a Python dictionary lookup.
+ * Price Parsing: Stripped non-numeric currency characters (£) and cast values to float (price_gbp).
+ * Star Ratings: Mapped text representations ("One" through "Five") to integer values (1 to 5) using a dictionary mapping.
+ * Availability: Processed string flags ("In stock") into boolean integer values (1 for in stock, 0 for out of stock).
 
-in_stock (int/bool): Transformed string availability indicators ("In stock") into binary flags (1 for in stock, 0 for out of stock).
+ ### 2. Missing Value & Exception Handling Strategy
 
-price_inr (float): Applied the mandatory project baseline rate of 1 GBP = 105.50 INR to compute Indian Rupee values, rounded to 2 decimal places.
+ * Numeric Fields: Applied median imputation fallback if numeric parsing fails or null values occur.
+ * Corrupted/Unparseable Rows: Dropped unparseable rows during iteration to preserve database integrity and prevent execution crashes.
 
-#### Missing Data & Error Handling Strategy
+ ### 3. Baseline Currency Conversion Rate
 
-Parsing Safeguards: Unparseable rows encounter an exception-handling block and are dropped to prevent pipeline failure and database corruption.
+ * Fixed Rate: Computed price_inr = price_gbp * 105.50 using the project's required fixed baseline constant (1 GBP = 105.50 INR).
+ 
+ ### 4. Normalized SQLite Schema (2-Table PK/FK)
 
-Numeric Imputation Fallback: If missing or null numerical fields occur in scraped pricing data, median imputation (df['price_gbp'].fillna(df['price_gbp'].median())) is applied automatically before currency conversion.
+ The database (zepto_catalog.db) uses a normalized relational model with Foreign Key enforcement (PRAGMA foreign_keys = ON;):
 
-Normalized Relational Database Schema
-The database (zepto_catalog.db) uses a Primary Key / Foreign Key architecture with Foreign Key enforcement (PRAGMA foreign_keys = ON;):
+ * categories: category_id (PRIMARY KEY), category_name (TEXT UNIQUE)
+ * books: book_id (PRIMARY KEY), title (TEXT), price_gbp (REAL), price_inr (REAL), rating (INTEGER), in_stock (INTEGER), category_id (FOREIGN KEY  referencing categories(category_id))
 
-1. categories Table
-category_id (INTEGER, PRIMARY KEY AUTOINCREMENT)
+## Verification & Output Log
 
-category_name (TEXT, UNIQUE NOT NULL)
+Executing python pipeline.py outputs:
 
-2. books Table
-book_id (INTEGER, PRIMARY KEY AUTOINCREMENT)
-
-title (TEXT, NOT NULL)
-
-price_gbp (REAL, NOT NULL)
-
-price_inr (REAL, NOT NULL)
-
-rating (INTEGER, NOT NULL)
-
-in_stock (INTEGER, NOT NULL)
-
-category_id (INTEGER, FOREIGN KEY referencing categories(category_id))
-
-### 4. Query Execution & Verification Logs
-SQL Query Results
-Executing pipeline.py runs 5 distinct queries against zepto_catalog.db:
-
-SELECT / WHERE / ORDER BY / LIMIT: Fetches top 5 most expensive books currently in stock.
-
-DISTINCT: Retrieves all distinct book ratings available in the dataset (1, 2, 3, 4, 5).
-
-BETWEEN: Filters products priced between £20.00 and £40.00 GBP.
-
-IN: Selects books with high star ratings (IN (4, 5)).
-
-JOIN: Joins books and categories to return book titles alongside their category names, sorted by rating and price.
-
-SQL vs. Pandas Merge Verification
-The output below demonstrates that retrieving query #5 via SQL (pd.read_sql_query) and performing an in-memory merge (pd.merge) on raw DataFrame tables produce identical results:
-
-=== SQL JOIN Output ===
-title                                        category_name  price_gbp  price_inr  rating
-The Most Perfect Thing                       Science            42.96    4532.28       4
-Immortal Life of Henrietta Lacks             Science            40.67    4290.69       4
-Scott Pilgrim's Precious Little Life...      Comics             52.29    5516.60       4
-
-=== Pandas pd.merge Output ===
-title                                        category_name  price_gbp  price_inr  rating
-The Most Perfect Thing                       Science            42.96    4532.28       4
-Immortal Life of Henrietta Lacks             Science            40.67    4290.69       4
-Scott Pilgrim's Precious Little Life...      Comics             52.29    5516.60       4
-
-Match Status: SUCCESS (Exact Match)
+ * 100 total items scraped across 5 paginated pages.
+ * Cleaned and stored into zepto_catalog.db.
+ * Side-by-side verification confirms that the SQL JOIN query and the in-memory pandas pd.merge() produce identical output datasets.
