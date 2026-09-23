@@ -14,14 +14,14 @@ Install the required packages using the module's dependency file:
 pip install -r requirements.txt
 ```
 
-Running the Pipeline
+### Running the Pipeline
 Execute the main ETL script to scrape data, build the relational schema, insert records, and run validation queries:
 
 python pipeline.py
 
 
 
-##  Engineering & Design Decisions
+## 3. Engineering & Design Decisions
 
  ###  1. Data Cleaning & Parsing
 
@@ -45,7 +45,7 @@ python pipeline.py
  * categories: category_id (PRIMARY KEY), category_name (TEXT UNIQUE)
  * books: book_id (PRIMARY KEY), title (TEXT), price_gbp (REAL), price_inr (REAL), rating (INTEGER), in_stock (INTEGER), category_id (FOREIGN KEY  referencing categories(category_id))
 
-## Verification & Output Log
+## 4. Verification & Output Log
 
 Executing python pipeline.py outputs:
 
