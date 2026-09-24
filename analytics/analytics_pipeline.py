@@ -68,7 +68,8 @@ X_train_c, X_test_c, y_train_c, y_test_c = train_test_split(
 )
 
 preprocessor_cls = ColumnTransformer(
-    transformers=[
+    transformers=
+    [
         ('cat', OneHotEncoder(handle_unknown='ignore'), ['category_name']),
         ('num', StandardScaler(), ['rating', 'in_stock'])
     ]
@@ -106,7 +107,8 @@ X_train_r, X_test_r, y_train_r, y_test_r = train_test_split(
     X_reg, y_reg, test_size=0.2, random_state=42
 )
 
-reg_pipeline = Pipeline([
+reg_pipeline = Pipeline
+([
     ('preprocessor', preprocessor_cls),
     ('regressor', LinearRegression())
 ])
