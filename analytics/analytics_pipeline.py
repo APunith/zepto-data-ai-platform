@@ -15,7 +15,6 @@ from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 
-# 1. Setup Directories
 os.makedirs("analytics/visualizations", exist_ok=True)
 os.makedirs("analytics/models", exist_ok=True)
 
