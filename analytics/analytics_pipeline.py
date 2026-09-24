@@ -18,7 +18,7 @@ from sklearn.ensemble import RandomForestClassifier
 os.makedirs("analytics/visualizations", exist_ok=True)
 os.makedirs("analytics/models", exist_ok=True)
 
-# 2. Data Ingestion from Module 1 Database
+# Data Ingestion from Module 1 Database
 db_path = os.path.join("data_pipeline", "zepto_catalog.db")
 if not os.path.exists(db_path):
     db_path = "zepto_catalog.db"
@@ -34,13 +34,13 @@ conn.close()
 
 print(f"Dataset successfully loaded with {len(df)} records.")
 
-# 3. Handle Null Values & Cleaning Safeguards
+# Handle Null Values & Cleaning Safeguards
 if df.isnull().sum().sum() > 0:
     df['price_gbp'] = df['price_gbp'].fillna(df['price_gbp'].median())
     df['price_inr'] = df['price_inr'].fillna(df['price_inr'].median())
     df['rating'] = df['rating'].fillna(df['rating'].median())
 
-# 4. Exploratory Data Analysis Plots
+# Exploratory Data Analysis Plots
 plt.figure(figsize=(8, 5))
 sns.histplot(df['price_inr'], kde=True, color='teal')
 plt.title('Distribution of Price (INR)')
@@ -55,7 +55,7 @@ plt.close()
 
 print("Saved EDA plots to analytics/visualizations/")
 
-# 5. ML Pipeline 1: Classification (Predict High-Value Books)
+# ML Pipeline 1: Classification (Predict High-Value Books)
 # Target: 1 if price_inr > median, else 0
 median_price = df['price_inr'].median()
 df['is_high_value'] = (df['price_inr'] > median_price).astype(int)
@@ -98,7 +98,7 @@ print(classification_report(y_test_c, y_pred_c))
 joblib.dump(best_cls_model, "analytics/models/best_classifier.joblib")
 print("Saved classifier model to analytics/models/best_classifier.joblib")
 
-# 6. ML Pipeline 2: Regression (Predict Price INR)
+# ML Pipeline 2: Regression (Predict Price INR)
 X_reg = df[['rating', 'in_stock', 'category_name']]
 y_reg = df['price_inr']
 
