@@ -183,6 +183,5 @@ def run_pipeline():
     load_data_to_db(df_clean, "data_pipeline/zepto_catalog.db")
     print("Successfully created and populated zepto_catalog.db!")
 
-
 if __name__ == "__main__":
     run_pipeline()
