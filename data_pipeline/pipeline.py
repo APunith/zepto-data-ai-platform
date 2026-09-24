@@ -18,7 +18,7 @@ def scrape_books(max_pages: int = 5) -> List[Dict]:
             f"{BASE_URL}catalogue/page-{page}.html"
             if page > 1
             else f"{BASE_URL}index.html"
-        )
+            )
         response = requests.get(url, timeout=10)
         if response.status_code != 200:
             continue
@@ -31,8 +31,7 @@ def scrape_books(max_pages: int = 5) -> List[Dict]:
             price_text = article.find("p", class_="price_color").text
             rating_text = article.p["class"][1]
             availability_text = article.find(
-                "p", class_="instock availability"
-            ).text.strip()
+                "p", class_="instock availability").text.strip()
 
             detail_rel_path = article.h3.a["href"].replace("catalogue/", "")
             detail_url = f"{BASE_URL}catalogue/{detail_rel_path}"
@@ -45,7 +44,8 @@ def scrape_books(max_pages: int = 5) -> List[Dict]:
                 if breadcrumb:
                     category = breadcrumb.find_all("li")[2].text.strip()
 
-            scraped_data.append(
+            scraped_data.append
+            (
                 {
                     "title": title,
                     "price_raw": price_text,
@@ -64,14 +64,16 @@ def clean_data(raw_records: List[Dict]) -> pd.DataFrame:
 
     for item in raw_records:
         try:
-            price_gbp = float(
+            price_gbp = float
+            (
                 "".join(c for c in item["price_raw"] if c.isdigit() or c == ".")
             )
             rating = RATING_MAP.get(item["rating_raw"], 0)
             in_stock = 1 if "In stock" in item["availability_raw"] else 0
             price_inr = round(price_gbp * GBP_TO_INR_RATE, 2)
 
-            cleaned_records.append(
+            cleaned_records.append
+            (
                 {
                     "title": item["title"],
                     "price_gbp": price_gbp,
@@ -99,14 +101,17 @@ def setup_database(db_path: str = "zepto_catalog.db"):
     cursor = conn.cursor()
     cursor.execute("PRAGMA foreign_keys = ON;")
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS categories (
+    cursor.execute
+    ("""
+        CREATE TABLE IF NOT EXISTS categories 
+        (
             category_id INTEGER PRIMARY KEY AUTOINCREMENT,
             category_name TEXT UNIQUE NOT NULL
         );
     """)
 
-    cursor.execute("""
+    cursor.execute
+    ("""
         CREATE TABLE IF NOT EXISTS books (
             book_id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
@@ -128,19 +133,22 @@ def load_data_to_db(df: pd.DataFrame, db_path: str = "zepto_catalog.db"):
     cursor = conn.cursor()
 
     for cat in df["category_name"].unique():
-        cursor.execute(
+        cursor.execute
+        (
             "INSERT OR IGNORE INTO categories (category_name) VALUES (?);",
             (cat,),
         )
     conn.commit()
 
-    cat_df = pd.read_sql_query(
+    cat_df = pd.read_sql_query
+    (
         "SELECT category_id, category_name FROM categories;", conn
     )
     df_merged = df.merge(cat_df, on="category_name")
 
     for _, row in df_merged.iterrows():
-        cursor.execute(
+        cursor.execute
+        (
             """
             INSERT INTO books (title, price_gbp, price_inr, rating, in_stock, category_id)
             VALUES (?, ?, ?, ?, ?, ?);
