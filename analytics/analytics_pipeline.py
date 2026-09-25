@@ -1,128 +1,200 @@
 import os
-import sqlite3
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 import joblib
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.impute import SimpleImputer
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.metrics import classification_report, mean_squared_error, r2_score
 from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.tree import DecisionTreeClassifier, plot_tree
 from sklearn.ensemble import RandomForestClassifier
-
-os.makedirs("analytics/visualizations", exist_ok=True)
-os.makedirs("analytics/models", exist_ok=True)
-
-# Data Ingestion from Module 1 Database
-db_path = os.path.join("data_pipeline", "zepto_catalog.db")
-if not os.path.exists(db_path):
-    db_path = "zepto_catalog.db"
-
-conn = sqlite3.connect(db_path)
-query = """
-SELECT b.title, b.price_gbp, b.price_inr, b.rating, b.in_stock, c.category_name
-FROM books b
-JOIN categories c ON b.category_id = c.category_id
-"""
-df = pd.read_sql_query(query, conn)
-conn.close()
-
-print(f"Dataset successfully loaded with {len(df)} records.")
-
-# Handle Null Values & Cleaning Safeguards
-if df.isnull().sum().sum() > 0:
-    df['price_gbp'] = df['price_gbp'].fillna(df['price_gbp'].median())
-    df['price_inr'] = df['price_inr'].fillna(df['price_inr'].median())
-    df['rating'] = df['rating'].fillna(df['rating'].median())
-
-# Exploratory Data Analysis Plots
-plt.figure(figsize=(8, 5))
-sns.histplot(df['price_inr'], kde=True, color='teal')
-plt.title('Distribution of Price (INR)')
-plt.savefig('analytics/visualizations/price_distribution.png')
-plt.close()
-
-plt.figure(figsize=(8, 5))
-sns.countplot(data=df, x='rating', palette='viridis')
-plt.title('Book Rating Counts')
-plt.savefig('analytics/visualizations/rating_distribution.png')
-plt.close()
-
-print("Saved EDA plots to analytics/visualizations/")
-
-# ML Pipeline 1: Classification (Predict High-Value Books)
-# Target: 1 if price_inr > median, else 0
-median_price = df['price_inr'].median()
-df['is_high_value'] = (df['price_inr'] > median_price).astype(int)
-
-X_cls = df[['rating', 'in_stock', 'category_name']]
-y_cls = df['is_high_value']
-
-X_train_c, X_test_c, y_train_c, y_test_c = train_test_split(
-    X_cls, y_cls, test_size=0.2, random_state=42, stratify=y_cls
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score, roc_auc_score,
+    confusion_matrix, mean_absolute_error, mean_squared_error, r2_score
 )
+from imblearn.over_sampling import SMOTE
 
-preprocessor_cls = ColumnTransformer(
-    transformers=
-    [
-        ('cat', OneHotEncoder(handle_unknown='ignore'), ['category_name']),
-        ('num', StandardScaler(), ['rating', 'in_stock'])
+VIS_DIR = os.path.join(os.path.dirname(__file__), "visualizations")
+os.makedirs(VIS_DIR, exist_ok=True)
+
+df_raw = sns.load_dataset("titanic")
+csv_path = os.path.join(os.path.dirname(__file__), "titanic.csv")
+df_raw.to_csv(csv_path, index=False)
+
+df = df_raw.copy()
+
+missing_pct = (df.isnull().sum() / len(df)) * 100
+print("Missing Values Percentage per Column:")
+print(missing_pct[missing_pct > 0])
+
+df["age"] = df["age"].fillna(df["age"].median())
+
+if "deck" in df.columns:
+    df = df.drop(columns=["deck"])
+
+df = df.dropna(subset=["embarked", "embark_town"])
+
+
+for col in ["age", "fare"]:
+    q1 = df[col].quantile(0.25)
+    q3 = df[col].quantile(0.75)
+    iqr = q3 - q1
+    outliers = df[(df[col] < (q1 - 1.5 * iqr)) | (df[col] > (q3 + 1.5 * iqr))]
+    print(f"IQR Outliers in {col}: {len(outliers)}")
+
+fare_mean = df["fare"].mean()
+fare_median = df["fare"].median()
+fare_mode = df["fare"].mode()[0]
+print(f"Fare Mean: {fare_mean:.2f}, Median: {fare_median:.2f}, Mode: {fare_mode:.2f}")
+print("Conclusion: Fare distribution is heavily right-skewed (Mean > Median > Mode).")
+
+numeric_cols = ["survived", "pclass", "age", "sibsp", "parch", "fare"]
+corr_matrix = df[numeric_cols].corr()
+
+plt.figure(figsize=(8, 6))
+sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", fmt=".2f")
+plt.title("6x6 Correlation Matrix")
+plt.tight_layout()
+plt.savefig(os.path.join(VIS_DIR, "correlation_heatmap.png"))
+plt.close()
+
+feature_cols = ["pclass", "sex", "age", "sibsp", "parch", "fare", "embarked"]
+X = df[feature_cols]
+y = df["survived"]
+
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+numeric_features = ["pclass", "age", "sibsp", "parch", "fare"]
+categorical_features = ["sex", "embarked"]
+
+num_transformer = Pipeline([
+    ("imputer", SimpleImputer(strategy="median")),
+    ("scaler", StandardScaler())
+])
+
+cat_transformer = Pipeline([
+    ("imputer", SimpleImputer(strategy="most_frequent")),
+    ("encoder", OneHotEncoder(handle_unknown="ignore"))
+])
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        ("num", num_transformer, numeric_features),
+        ("cat", cat_transformer, categorical_features)
     ]
 )
 
-cls_pipeline = Pipeline([
-    ('preprocessor', preprocessor_cls),
-    ('classifier', RandomForestClassifier(random_state=42))
-])
-
-# Hyperparameter Tuning using GridSearchCV
-param_grid = {
-    'classifier__n_estimators': [50, 100],
-    'classifier__max_depth': [None, 5, 10]
+classifiers = {
+    "Logistic Regression": LogisticRegression(random_state=42),
+    "Decision Tree": DecisionTreeClassifier(random_state=42, max_depth=4),
+    "Random Forest": RandomForestClassifier(random_state=42, n_estimators=100)
 }
 
-grid_search = GridSearchCV(cls_pipeline, param_grid, cv=3, scoring='f1')
-grid_search.fit(X_train_c, y_train_c)
+results = []
+for name, clf in classifiers.items():
+    model_pipeline = Pipeline([
+        ("preprocessor", preprocessor),
+        ("classifier", clf)
+    ])
+    
+    model_pipeline.fit(X_train, y_train)
+    y_pred = model_pipeline.predict(X_test)
+    y_proba = model_pipeline.predict_proba(X_test)[:, 1] if hasattr(clf, "predict_proba") else y_pred
+    
+    acc = accuracy_score(y_test, y_pred)
+    prec = precision_score(y_test, y_pred)
+    rec = recall_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+    auc = roc_auc_score(y_test, y_proba)
+    
+    results.append({
+        "Model": name,
+        "Accuracy": round(acc, 4),
+        "Precision": round(prec, 4),
+        "Recall": round(rec, 4),
+        "F1 Score": round(f1, 4),
+        "AUC": round(auc, 4)
+    })
 
-best_cls_model = grid_search.best_estimator_
-y_pred_c = best_cls_model.predict(X_test_c)
+print("\n--- Classifier Performance Metrics ---")
+print(pd.DataFrame(results))
 
-print("\n--- Classification Performance ---")
-print(classification_report(y_test_c, y_pred_c))
+X_train_prep = preprocessor.fit_transform(X_train)
+X_test_prep = preprocessor.transform(X_test)
 
-# Save Best Classification Model
-joblib.dump(best_cls_model, "analytics/models/best_classifier.joblib")
-print("Saved classifier model to analytics/models/best_classifier.joblib")
+smote = SMOTE(random_state=42)
+X_train_sm, y_train_sm = smote.fit_resample(X_train_prep, y_train)
 
-# ML Pipeline 2: Regression (Predict Price INR)
-X_reg = df[['rating', 'in_stock', 'category_name']]
-y_reg = df['price_inr']
+rf_smote = RandomForestClassifier(random_state=42)
+rf_smote.fit(X_train_sm, y_train_sm)
+y_pred_sm = rf_smote.predict(X_test_prep)
+print(f"\nRandom Forest + SMOTE F1 Score: {f1_score(y_test, y_pred_sm):.4f}")
+
+rf_oob = RandomForestClassifier(oob_score=True, random_state=42)
+param_grid = {
+    "classifier__n_estimators": [50, 100],
+    "classifier__max_depth": [3, 5, 10],
+    "classifier__max_features": ["sqrt", "log2"]
+}
+
+rf_search_pipeline = Pipeline([
+    ("preprocessor", preprocessor),
+    ("classifier", rf_oob)
+])
+
+grid_search = GridSearchCV(rf_search_pipeline, param_grid, cv=5, scoring="f1")
+grid_search.fit(X_train, y_train)
+
+best_rf = grid_search.best_estimator_
+best_oob = best_rf.named_steps["classifier"].oob_score_
+print(f"Best Parameters: {grid_search.best_params_}")
+print(f"Out-of-Bag (OOB) Score: {best_oob:.4f}")
+
+X_reg = df[["pclass", "sex", "age", "sibsp", "parch", "embarked"]]
+y_reg = df["fare"]
 
 X_train_r, X_test_r, y_train_r, y_test_r = train_test_split(
     X_reg, y_reg, test_size=0.2, random_state=42
 )
 
-reg_pipeline = Pipeline
-([
-    ('preprocessor', preprocessor_cls),
-    ('regressor', LinearRegression())
+preprocessor_reg = ColumnTransformer(
+    transformers=[
+        ("num", StandardScaler(), ["pclass", "age", "sibsp", "parch"]),
+        ("cat", OneHotEncoder(handle_unknown="ignore"), ["sex", "embarked"])
+    ]
+)
+
+reg_pipeline = Pipeline([
+    ("preprocessor", preprocessor_reg),
+    ("regressor", LinearRegression())
 ])
 
 reg_pipeline.fit(X_train_r, y_train_r)
 y_pred_r = reg_pipeline.predict(X_test_r)
 
-r2 = r2_score(y_test_r, y_pred_r)
+mae = mean_absolute_error(y_test_r, y_pred_r)
 rmse = np.sqrt(mean_squared_error(y_test_r, y_pred_r))
+r2 = r2_score(y_test_r, y_pred_r)
+n = len(y_test_r)
+p = X_train_r.shape[1]
+adj_r2 = 1 - (1 - r2) * (n - 1) / (n - p - 1)
 
-print("\n--- Regression Performance ---")
-print(f"R2 Score: {r2:.4f}")
-print(f"RMSE: {rmse:.4f}")
+print("\n--- Regression Task Metrics (Fare Prediction) ---")
+print(f"MAE: {mae:.2f}, RMSE: {rmse:.2f}, R2: {r2:.4f}, Adjusted R2: {adj_r2:.4f}")
 
-# Save Regression Model
-joblib.dump(reg_pipeline, "analytics/models/price_regressor.joblib")
-print("Saved regressor model to analytics/models/price_regressor.joblib")
+model_path = os.path.join(os.path.dirname(__file__), "models", "best_pipeline.joblib")
+os.makedirs(os.path.dirname(model_path), exist_ok=True)
+joblib.dump(best_rf, model_path)
+print(f"\nSaved complete pipeline artifact to {model_path}")
+
+reloaded_model = joblib.load(model_path)
+test_sample = X_test.iloc[:1]
+sample_pred = reloaded_model.predict(test_sample)
+print(f"Reload Sanity Check Prediction on raw sample: {sample_pred[0]}")
