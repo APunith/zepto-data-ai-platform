@@ -1,54 +1,38 @@
-# Module 1 — Data Engineering Pipeline (`/data_pipeline`)
+# Module 1 — Data Engineering Pipeline (/data_pipeline)
 
 ## 1. Overview
-This module extracts competitive intelligence catalog data from [books.toscrape.com](http://books.toscrape.com/), performs type casting and currency normalization, loads the clean dataset into a normalized SQLite relational database, and verifies SQL and pandas query equivalency.
+This module extracts book catalog data from `books.toscrape.com`, cleans and transforms raw text attributes, converts currency from GBP to INR using a fixed exchange rate (1 GBP = 105.50 INR), builds an normalized SQLite relational database schema, and validates analytical query logic using both SQL clauses and equivalent `pandas` dataframe operations.
 
 ---
 
-## 2. Setup & Execution
+## 2. Key Features & Implementation Details
 
-### Prerequisites & Dependencies
-Install the required packages using the module's dependency file:
+* **Robust Web Scraping**:
+  * Utilizes `requests` with standard browser `User-Agent` headers to bypass request filtering.
+  * Paginates through multiple catalog pages to ingest 100 items (surpassing the minimum requirement of 60 records).
+  * Implements defensive error handling and fallbacks for missing price, rating, or stock status fields.
 
+* **Data Cleaning & Transformation**:
+  * Strips currency symbols and non-ASCII artifacts from raw price strings.
+  * Maps text ratings (`One`, `Two`, `Three`, `Four`, `Five`) to numerical integer values (`1–5`).
+  * Converts stock status strings into binary flags (`1` for In stock, `0` for Out of stock).
+  * Computes `price_inr` using the fixed exchange rate: `price_inr = round(price_gbp * 105.50, 2)`.
+
+* **Relational SQLite Schema**:
+  * Enforces foreign key constraints (`PRAGMA foreign_keys = ON;`).
+  * Constructs normalized tables:
+    * `categories` (`category_id` PRIMARY KEY, `category_name` UNIQUE)
+    * `books` (`book_id` PRIMARY KEY, `category_id` FOREIGN KEY, `title`, `price_gbp`, `price_inr`, `rating`, `in_stock`)
+
+* **Query Execution & Equivalence Verification**:
+  * Runs complex SQL queries using `JOIN`, `WHERE`, `ORDER BY`, `LIMIT`, `BETWEEN`, and `DISTINCT`.
+  * Replicates relational join logic in Python using `pd.merge()` on in-memory DataFrames to verify data consistency across both querying paradigms.
+
+---
+
+## 3. Setup & Execution
+
+**Run the Pipeline**
 ```bash
-pip install -r requirements.txt
+python data_pipeline/pipeline.py
 ```
-
-### Running the Pipeline
-Execute the main ETL script to scrape data, build the relational schema, insert records, and run validation queries:
-
-python pipeline.py
-
-
-
-## 3. Engineering & Design Decisions
-
- ### Data Cleaning & Parsing
-
- * Price Parsing: Stripped non-numeric currency characters (£) and cast values to float (price_gbp).
- * Star Ratings: Mapped text representations ("One" through "Five") to integer values (1 to 5) using a dictionary mapping.
- * Availability: Processed string flags ("In stock") into boolean integer values (1 for in stock, 0 for out of stock).
-
- ### Missing Value & Exception Handling Strategy
-
- * Numeric Fields: Applied median imputation fallback if numeric parsing fails or null values occur.
- * Corrupted/Unparseable Rows: Dropped unparseable rows during iteration to preserve database integrity and prevent execution crashes.
-
- ### Baseline Currency Conversion Rate
-
- * Fixed Rate: Computed price_inr = price_gbp * 105.50 using the project's required fixed baseline constant (1 GBP = 105.50 INR).
- 
- ### Normalized SQLite Schema (2-Table PK/FK)
-
- The database (zepto_catalog.db) uses a normalized relational model with Foreign Key enforcement (PRAGMA foreign_keys = ON;):
-
- * categories: category_id (PRIMARY KEY), category_name (TEXT UNIQUE)
- * books: book_id (PRIMARY KEY), title (TEXT), price_gbp (REAL), price_inr (REAL), rating (INTEGER), in_stock (INTEGER), category_id (FOREIGN KEY  referencing categories(category_id))
-
-## 4. Verification & Output Log
-
-Executing python pipeline.py outputs:
-
- * 100 total items scraped across 5 paginated pages.
- * Cleaned and stored into zepto_catalog.db.
- * Side-by-side verification confirms that the SQL JOIN query and the in-memory pandas pd.merge() produce identical output datasets.
