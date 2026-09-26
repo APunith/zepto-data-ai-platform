@@ -36,3 +36,31 @@ This module extracts book catalog data from `books.toscrape.com`, cleans and tra
 ```bash
 python data_pipeline/pipeline.py
 ```
+## 4. Verified Pipeline Execution Output
+
+```text
+Step 1: Scraped 100 total items.
+Step 2: Cleaned 100 records successfully.
+Step 3: Database schema initialized and populated.
+```
+
+### Step 4: SQL Queries Execution
+**SQL Join Query Result (Top 5 Rated >= 4):**
+```text
+                                          title  price_gbp  price_inr  rating category_name
+0  The Death of Humanity: and the Case for Life      58.11    6130.60       4    Philosophy
+1  The Death of Humanity: and the Case for Life      58.11    6130.60       4       General
+2                           The Past Never Ends      56.50    5960.75       4       Mystery
+3                           The Past Never Ends      56.50    5960.75       4       General
+4         Sapiens: A Brief History of Humankind      54.23    5721.26       5       History
+```
+
+**Pandas `pd.merge()` Equivalence Check:**
+```text
+                                          title  price_gbp  price_inr  rating category_name
+0  The Death of Humanity: and the Case for Life      58.11    6130.60       4       General
+1  The Death of Humanity: and the Case for Life      58.11    6130.60       4    Philosophy
+2                           The Past Never Ends      56.50    5960.75       4       Mystery
+3                           The Past Never Ends      56.50    5960.75       4       General
+4         Sapiens: A Brief History of Humankind      54.23    5721.26       5       History
+```
